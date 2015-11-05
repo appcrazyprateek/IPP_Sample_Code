@@ -26,6 +26,8 @@ import com.intuit.ipp.aggcat.data.Institution;
 import com.intuit.ipp.aggcat.data.InstitutionDetail;
 import com.intuit.ipp.aggcat.data.InstitutionLogin;
 import com.intuit.ipp.aggcat.data.Institutions;
+import com.intuit.ipp.aggcat.data.Provider;
+import com.intuit.ipp.aggcat.data.Providers;
 import com.intuit.ipp.aggcat.data.Transaction;
 import com.intuit.ipp.aggcat.data.Files;
 import com.intuit.ipp.aggcat.data.TransactionList;
@@ -69,6 +71,134 @@ public class AggCatApiController {
 			return false;
 	}
 
+	/**
+	 * This method will fetch all the institutions
+	 * 
+	 * @param request
+	 * @param model
+	 * @return getInstitution
+	 */
+	@RequestMapping(value = "/fihealthtop20.htm", method = RequestMethod.GET)
+	public String fetchFiHealthTop20Institutions(HttpServletRequest request, Model model) {
+
+		logger.info("Reached fetchFiHealthTop20Institutions");
+		if (!isUserValid(request)) {
+			logger.info("User not authenticated");
+			return "login";
+		}
+
+		try {
+			HttpSession session = request.getSession();
+			session.removeAttribute("InstitutionsTablePager");
+			session.removeAttribute("InstitutionPage");
+			/*
+			 * Fetching the AggCatService instance from the session.
+			 */
+			AggCatService service = (AggCatService) session.getAttribute("AggCatService");
+			logger.info("Created AggCatService");
+			List<List<String>> institutionList = new ArrayList<List<String>>();
+			List<String> item = new ArrayList<String>();
+			
+			/*
+			 * Invoking the getFiHealthTop20Institutions API to get the health status of top 20 institution.
+			 */
+			Providers institutions = service.getFiHealthTop20Institutions();
+			logger.info("Fetched " + institutions.getProvider().size() + "FiHealth institutions");
+			
+			//Collections.sort(institutions.getProvider());
+			/*
+			 * Preparing a List<List<String>> from the Institutions object so as to render it in HTML table.
+			 */
+			for (Provider institution :  institutions.getProvider()) {
+				item = new ArrayList<String>();
+				item.add(Long.toString(institution.getLegacyId()));
+				item.add(service.getInstitutionDetails(institution.getLegacyId()).getInstitutionName()+"");
+				item.add(institution.getHealthSummary().getStatus());
+				item.add(institution.getHealthSummary().getSecondryStatus());
+				item.add(institution.getHealthSummary().getTimestamp().getTime().toString());
+				
+				institutionList.add(item);
+			}
+			model.addAttribute("fihealthinstitution",  institutionList);
+
+		} catch (AggCatException ex) {
+			logger.error("Failed to fetch institutions, " + ex.getMessage());
+			String errorCode = ex.getErrorCode();
+			if (hasText(errorCode) && errorCode.equals("401")) {
+				return "invalidateToken";
+			}
+			request.setAttribute("error", ex.getErrorMessage());
+		}
+		return "fihealth";
+	}
+	
+	
+	/**
+	 * This method will fetch all the institutions
+	 * 
+	 * @param request
+	 * @param model
+	 * @return getInstitution
+	 */
+	@RequestMapping(value = "/fihealthsingle.htm", method = RequestMethod.GET)
+	public String fetchFiHealthSingleInstitution(HttpServletRequest request, Model model) {
+
+		logger.info("Reached fetchInstitutions");
+		if (!isUserValid(request)) {
+			logger.info("User not authenticated");
+			return "login";
+		}
+
+		try {
+			String institutionIdStr = request.getParameter("id");
+
+			System.out.println("InstitionId : "+ institutionIdStr);
+			
+			HttpSession session = request.getSession();
+			session.removeAttribute("InstitutionsTablePager");
+			session.removeAttribute("InstitutionPage");
+			
+			
+			if(!StringUtils.isInteger(institutionIdStr)){
+				return "fihealth";
+			}
+			
+			/*
+			 * Fetching the AggCatService instance from the session.
+			 */
+			AggCatService service = (AggCatService) session.getAttribute("AggCatService");
+			logger.info("Created AggCatService");
+			List<List<String>> institutionList = new ArrayList<List<String>>();
+			List<String> item = new ArrayList<String>();
+			/*
+			 * Invoking the getFiHealthSingleInstitution API to get the list of institutions.
+			 */
+			Provider institution = service.getFiHealthSingleInstitution(institutionIdStr);
+			
+			/*
+			 * Preparing a List<List<String>> from the Institutions object so as to render it in HTML table.
+			 */
+				item = new ArrayList<String>();
+				item.add(Long.toString(institution.getLegacyId()));
+				item.add(service.getInstitutionDetails(institution.getLegacyId()).getInstitutionName()+"");
+				item.add(institution.getHealthSummary().getStatus());
+				item.add(institution.getHealthSummary().getSecondryStatus());
+				item.add(institution.getHealthSummary().getTimestamp().getTime().toString());
+				institutionList.add(item);
+		
+				model.addAttribute("fihealthinstitution", institutionList);
+
+		} catch (AggCatException ex) {
+			logger.error("Failed to fetch institutions, " + ex.getMessage());
+			String errorCode = ex.getErrorCode();
+			if (hasText(errorCode) && errorCode.equals("401")) {
+				return "invalidateToken";
+			}
+			request.setAttribute("error", ex.getErrorMessage());
+		}
+		return "fihealth";
+	}
+	
 	/**
 	 * This method will fetch all the institutions
 	 * 
